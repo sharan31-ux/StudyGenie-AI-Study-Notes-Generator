@@ -36,6 +36,13 @@ def load_css():
     css_path = Path(__file__).parent / "assets" / "style.css"
     if css_path.exists():
         st.markdown(f"<style>{css_path.read_text()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(
+            "⚠️ assets/style.css not found — the app is rendering with Streamlit's "
+            "default theme instead of StudyGenie's custom look. Make sure the "
+            "`assets/` folder (and `.streamlit/config.toml`) were deployed alongside "
+            "app.py."
+        )
 
 
 load_css()
@@ -74,15 +81,32 @@ with st.sidebar:
     except Exception:
         secret_key = ""
 
-    api_key = st.text_input(
-        "Google Gemini API Key",
-        type="password",
-        value=st.session_state.get("api_key", secret_key),
-        help="Get a free key at aistudio.google.com/app/apikey. "
-             "For deployment, store it in Streamlit Secrets as GEMINI_API_KEY instead.",
-    )
-    if api_key:
-        st.session_state["api_key"] = api_key
+    if secret_key:
+        # A key is already configured in Streamlit Secrets (server-side only).
+        # Never echo it into the text_input's value — that field is a masked
+        # "password" input with a reveal (eye) icon, so pre-filling it would
+        # let anyone visiting the public app URL unmask and steal the key.
+        st.success("✅ Gemini API key configured for this deployment.")
+        override_key = st.text_input(
+            "Use your own Gemini API key instead (optional)",
+            type="password",
+            value="",
+            help="Leave blank to use the key the app owner configured. "
+                 "Entering a key here only affects your own session and is "
+                 "never saved or shown to other visitors.",
+        )
+        st.session_state["api_key"] = override_key.strip() or secret_key
+    else:
+        api_key = st.text_input(
+            "Google Gemini API Key",
+            type="password",
+            value=st.session_state.get("api_key", ""),
+            help="Get a free key at aistudio.google.com/app/apikey. "
+                 "For deployment, store it in Streamlit Secrets as GEMINI_API_KEY instead "
+                 "so visitors never need to enter their own.",
+        )
+        if api_key:
+            st.session_state["api_key"] = api_key
 
     st.divider()
     st.markdown("### ⚙️ Generation Settings")
